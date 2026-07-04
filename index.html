@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Merits of Math — AI-powered gamified mathematics learning platform for Vietnamese high school students.">
+    <title>Merits of Math — Logarithmic Functions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.js"></script>
+    <script defer src="https://unpkg.com/mathlive"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Animated Onboarding Environment (Visible by Default, Javascript will hide if profile exists) -->
+    <div id="onboarding-view" class="onboarding-container">
+        <div class="mesh-gradient"></div>
+        <canvas id="grid-canvas"></canvas>
+        <div id="math-particles" class="particles-container"></div>
+
+        <div class="onboarding-card">
+            <!-- Step 1: Identity -->
+            <div class="onboarding-step active" id="step-1">
+                <h2>Welcome to Merits of Math</h2>
+                <div class="form-group" style="margin-top: 24px;">
+                    <label for="ob-name">What shall we call you?</label>
+                    <input type="text" id="ob-name" placeholder="Enter your name..." autocomplete="off">
+                </div>
+                <div class="nav-btns" style="justify-content: center; margin-top: 32px;">
+                    <button class="btn btn-primary btn-large next-step" data-next="2"
+                        style="width: 100%; max-width: 300px;">Continue <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+
+            <!-- Step 2: Grade Selection -->
+            <div class="onboarding-step" id="step-2">
+                <h2>Select Your Path</h2>
+                <p>Choose your current grade level to unlock the right curriculum.</p>
+                <div class="grade-selector">
+                    <button class="grade-option disabled" data-grade="Grade 10">
+                        <span>10</span>
+                    </button>
+                    <button class="grade-option active" data-grade="Grade 11">
+                        <span>11</span>
+                    </button>
+                    <button class="grade-option disabled" data-grade="Grade 12">
+                        <span>12</span>
+                    </button>
+                </div>
+                <div class="nav-btns">
+                    <button class="btn btn-secondary back-step" data-prev="1">Back</button>
+                    <button class="btn btn-primary next-step" data-next="3">Next <i
+                            class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+
+            <!-- Step 3: Curriculum Selection -->
+            <div class="onboarding-step" id="step-3">
+                <h2>Prior Knowledge</h2>
+                <p>Which curriculum module have you recently covered or mastered?</p>
+                <div class="accordion-container" style="margin-top: 20px;">
+
+                    <!-- Grade 10 (Locked/Faded) -->
+                    <div class="accordion-item"
+                        style="opacity: 0.5; cursor: not-allowed; margin-bottom: 15px; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2); background: rgba(15, 23, 42, 0.6); overflow: hidden;">
+                        <div class="accordion-header"
+                            style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
+                            <span style="font-weight: 600;">Grade 10</span>
+                            <i class="fa-solid fa-lock" style="color: #64748b;"></i>
+                        </div>
+                    </div>
+
+                    <!-- Grade 11 (Active) -->
+                    <div class="accordion-item custom-dropdown-active"
+                        style="margin-bottom: 15px; border-radius: 12px; border: 2px solid #818cf8; background: rgba(15, 23, 42, 0.9); overflow: hidden; box-shadow: 0 0 15px rgba(129, 140, 248, 0.2);">
+                        <div class="accordion-header"
+                            style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; color: white; cursor: pointer; background: rgba(129, 140, 248, 0.1);">
+                            <span style="font-weight: 600;">Grade 11</span>
+                            <i class="fa-solid fa-chevron-down" style="color: #818cf8;"></i>
+                        </div>
+                        <div class="accordion-body"
+                            style="padding: 20px; border-top: 1px solid rgba(129, 140, 248, 0.2);">
+                            <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 0.9rem; color: #a5b4fc;">Algebra &
+                                Calculus</h4>
+                            <div class="pill-container" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <div class="module-pill active-pill" id="log-pill"
+                                    style="padding: 8px 16px; background: #818cf8; color: white; border-radius: 20px; font-size: 0.9rem; cursor: pointer; font-weight: 500; border: 1px solid #c7d2fe; transition: all 0.3s ease;">
+                                    Logarithms & Exponents</div>
+                                <div class="module-pill disabled-pill"
+                                    style="padding: 8px 16px; background: rgba(148, 163, 184, 0.1); color: #94a3b8; border-radius: 20px; font-size: 0.9rem; cursor: not-allowed; border: 1px dashed rgba(148, 163, 184, 0.3);">
+                                    Trigonometry</div>
+                                <div class="module-pill disabled-pill"
+                                    style="padding: 8px 16px; background: rgba(148, 163, 184, 0.1); color: #94a3b8; border-radius: 20px; font-size: 0.9rem; cursor: not-allowed; border: 1px dashed rgba(148, 163, 184, 0.3);">
+                                    Derivatives</div>
+                            </div>
+
+                            <!-- Sub-Knowledge Selector -->
+                            <div id="sub-knowledge-box" class="sub-knowledge-hidden"
+                                style="margin-top: 16px; padding: 16px; border-radius: 12px; background: rgba(0,0,0,0.2); border: 1px solid rgba(129, 140, 248, 0.15);">
+                                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px; margin-top: 0;">
+                                    Multi-select the specific chapters you have already mastered:</p>
+                                <div id="dynamic-sub-pills" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <!-- Javascript injects window.DB.skillNodes here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grade 12 (Locked/Faded) -->
+                    <div class="accordion-item"
+                        style="opacity: 0.5; cursor: not-allowed; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2); background: rgba(15, 23, 42, 0.6); overflow: hidden;">
+                        <div class="accordion-header"
+                            style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
+                            <span style="font-weight: 600;">Grade 12</span>
+                            <i class="fa-solid fa-lock" style="color: #64748b;"></i>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- Hidden input to store value -->
+                <input type="hidden" id="ob-curriculum" value="logarithms">
+
+                <div class="nav-btns" style="margin-top: 30px;">
+                    <button class="btn btn-secondary back-step" data-prev="2">Back</button>
+                    <button class="btn btn-primary next-step" data-next="4">Next <i
+                            class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+
+            <!-- Step 4: Confidence -->
+            <div class="onboarding-step" id="step-4">
+                <h2>Math Confidence</h2>
+                <p>How do you feel about Logarithms and Exponents right now?</p>
+                <div class="confidence-slider-container">
+                    <div class="confidence-labels">
+                        <span>Beginner</span>
+                        <span>Expert</span>
+                    </div>
+                    <input type="range" id="ob-confidence" min="1" max="5" value="3">
+                    <div class="confidence-value-display">Level: <span id="conf-val">3</span>/5</div>
+                </div>
+                <div class="nav-btns">
+                    <button class="btn btn-secondary back-step" data-prev="3">Back</button>
+                    <button class="btn btn-primary next-step" id="ob-finish-btn" data-next="done">Finish Onboarding <i
+                            class="fa-solid fa-flag-checkered"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <i class="fa-solid fa-square-root-variable logo-icon"></i>
+                <h1>Merits of Math</h1>
+            </div>
+
+            <div class="user-profile">
+                <div class="avatar">L</div>
+                <div class="user-info">
+                    <span class="user-name">Student</span>
+                    <span class="user-level" id="ui-user-level">Grade 11 — Lvl 1</span>
+                </div>
+            </div>
+
+            <nav class="main-nav">
+                <button class="nav-item active" data-target="dashboard-view" id="nav-dashboard">
+                    <i class="fa-solid fa-compass"></i> Dashboard
+                </button>
+                <button class="nav-item" data-target="skilltree-view" id="nav-skilltree">
+                    <i class="fa-solid fa-project-diagram"></i> Skill Tree
+                </button>
+                <button class="nav-item" data-target="battle-view" id="nav-battle" disabled>
+                    <i class="fa-solid fa-gamepad"></i> Battle Arena <span class="badge hidden"
+                        id="battle-badge">1</span>
+                </button>
+                <button class="nav-item" id="nav-settings">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </button>
+            </nav>
+
+            <div class="quest-tracker">
+                <h3>Daily 15-Min Quest</h3>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="quest-progress-bar" style="width: 0%"></div>
+                </div>
+                <p class="progress-text" id="quest-progress-text">0 / 15 mins</p>
+                <p class="quest-status" id="quest-focus"></p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+
+            <!-- Dashboard View -->
+            <section id="dashboard-view" class="view-section active">
+                <header class="view-header">
+                    <h2>Welcome back, <span id="dash-user-name">Student</span>.</h2>
+                    <p id="recommended-action-count">Loading your progress...</p>
+                </header>
+
+                <div class="widget-grid">
+                    <!-- Diagnostic Action Item -->
+                    <div class="card action-card highlight-card" id="diagnostic-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-sync fa-spin"></i> Analyzing Progress...</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>Calculating your next best step to mastery.</p>
+                        </div>
+                    </div>
+
+                    <!-- Recent Progress -->
+                    <div class="card stats-card">
+                        <h3><i class="fa-solid fa-chart-line"></i> Recent Mastery</h3>
+                        <ul class="mastery-list" id="mastery-list">
+                            <li><em>No concepts practiced yet. Start a battle to begin!</em></li>
+                        </ul>
+                    </div>
+
+                    <!-- Concepts Mastered -->
+                    <div class="card stats-card">
+                        <h3><i class="fa-solid fa-star"></i> Progress Overview</h3>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div id="stat-concepts-mastered" class="stat-value">0</div>
+                                <div class="stat-label">Mastered</div>
+                            </div>
+                            <div class="stat-item">
+                                <div id="stat-total-xp" class="stat-value">0</div>
+                                <div class="stat-label">Total XP</div>
+                            </div>
+                            <div class="stat-item">
+                                <div id="stat-accuracy-rate" class="stat-value">—</div>
+                                <div class="stat-label">Accuracy</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Unlock & Weakest Area -->
+                    <div class="card stats-card">
+                        <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Smart Recommendations</h3>
+                        <div id="stat-next-unlock"
+                            style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                            <p class="stat-label" style="margin-bottom: 4px;">Next Unlock:</p>
+                            <p style="margin: 0; font-weight: 600; font-size: 14px; color: var(--text-primary);"
+                                id="stat-next-unlock-content">Loading...</p>
+                        </div>
+                        <div id="stat-weakest-area">
+                            <p class="stat-label" style="margin-bottom: 4px;">Focus Area:</p>
+                            <p style="margin: 0; font-weight: 600; font-size: 14px; color: var(--text-primary);"
+                                id="stat-weakest-area-content">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Skill Tree View -->
+            <section id="skilltree-view" class="view-section">
+                <header class="view-header">
+                    <h2>Logarithmic Functions Mastery Map</h2>
+                    <p>Click on any unlocked node to view its lesson content. Red nodes are critical gaps.</p>
+                </header>
+                <div class="skill-tree-container" id="skill-tree-container">
+                    <!-- SVG for connection lines -->
+                    <svg class="tree-svg" id="tree-svg"></svg>
+                    <!-- Nodes rendered by JS -->
+                </div>
+
+                <!-- Node Detail Panel (appears when a node is clicked) -->
+                <div class="node-detail-panel hidden" id="node-detail-panel">
+                    <div class="node-detail-header">
+                        <div class="node-detail-title">
+                            <span class="node-detail-icon" id="node-detail-icon"></span>
+                            <h3 id="node-detail-name"></h3>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="close-panel-btn">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="node-detail-status" id="node-detail-status"></div>
+                    <div class="node-detail-body" id="node-detail-body"></div>
+                    <div class="node-detail-actions" id="node-detail-actions"></div>
+                </div>
+            </section>
+
+            <!-- Battle Arena View (Socratic AI) -->
+            <section id="battle-view" class="view-section">
+                <div class="battle-container">
+                    <header class="battle-header">
+                        <div class="battle-info">
+                            <h2 id="battle-title">Socratic Battle Arena</h2>
+                            <p class="topic" id="battle-topic">Topic Loading...</p>
+                        </div>
+                        <div class="battle-meta">
+
+                            <span class="battle-progress" id="battle-progress">0 / 7</span>
+                            <button class="btn btn-secondary btn-sm" id="leave-battle">Exit Battle</button>
+                        </div>
+                    </header>
+
+                    <div class="chat-container" id="chat-messages"></div>
+                    <div id="floating-skip-container" class="floating-actions hidden"></div>
+
+                    <div class="chat-input-area" style="flex-direction: row;">
+                        <div style="display: flex; gap: 6px; align-items: center; width: 100%; flex-wrap: nowrap;">
+                            <button id="toggle-input-mode" class="btn btn-secondary"
+                                style="padding: 8px 10px; font-size: 13px; white-space: nowrap; flex-shrink: 0;"
+                                title="Toggle between text and math input">T</button>
+                            <input type="text" id="user-text" placeholder="Explanation..." autocomplete="off"
+                                style="display: block; flex-grow: 1; min-width: 150px;">
+                            <math-field id="user-math" math-virtual-keyboard-policy="manual"
+                                style="flex-grow: 1; min-width: 150px; font-size: 16px; background-color: var(--bg-main); border: 1px solid rgba(255,255,255,0.04); border-radius: var(--radius-md); outline: none; display: none; padding: 4px;"
+                                placeholder="f(x)="></math-field>
+                            <button id="send-btn" class="btn btn-primary"
+                                style="padding: 8px 14px; white-space: nowrap; flex-shrink: 0;"><i
+                                    class="fa-solid fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- API Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-microchip"></i> AI Configuration</h2>
+                <button id="close-settings-btn" class="btn btn-secondary btn-sm"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Choose your default provider for the Socratic Battle Arena.</p>
+                <br>
+                <div class="section-label"
+                    style="font-size: 11px; font-weight: 700; color: var(--text-tertiary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Default Provider</div>
+                <div class="provider-choice" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <label style="flex: 1; cursor: pointer;">
+                        <input type="radio" name="ai-provider" value="cloud" id="provider-cloud" style="display:none;">
+                        <div class="btn btn-secondary"
+                            style="width: 100%; text-align: center; border: 1px solid var(--border-color); font-size: 13px;"
+                            id="label-cloud">
+                            <i class="fa-solid fa-cloud"></i> Cloud
+                        </div>
+                    </label>
+                    <label style="flex: 1; cursor: pointer;">
+                        <input type="radio" name="ai-provider" value="local" id="provider-local" style="display:none;">
+                        <div class="btn btn-secondary"
+                            style="width: 100%; text-align: center; border: 1px solid var(--border-color); font-size: 13px;"
+                            id="label-local">
+                            <i class="fa-solid fa-house-laptop"></i> Local
+                        </div>
+                    </label>
+                </div>
+
+                <div id="config-cloud-section">
+                    <div class="section-label"
+                        style="font-size: 11px; font-weight: 700; color: var(--text-tertiary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Cloud Configuration</div>
+                    <div class="input-group">
+                        <label for="cloud-key-input">Groq API Key</label>
+                        <input type="password" id="cloud-key-input" placeholder="gsk_...">
+                    </div>
+                </div>
+
+                <div id="config-local-section" style="display: none;">
+                    <div class="section-label"
+                        style="font-size: 11px; font-weight: 700; color: var(--text-tertiary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Local Configuration (Ollama)</div>
+                    <div class="input-group">
+                        <label for="local-url-input">Ollama Base URL</label>
+                        <input type="text" id="local-url-input" placeholder="http://localhost:11434/v1">
+                    </div>
+                    <div class="input-group" style="margin-top: 10px;">
+                        <label for="local-model-input">Ollama Model Name</label>
+                        <input type="text" id="local-model-input" placeholder="llama3">
+                    </div>
+                </div>
+
+
+                <br>
+                <button id="save-api-key-btn" class="btn btn-primary" style="width: 100%;">Save Configurations</button>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="js/db.js"></script>
+    <script src="js/rag.js"></script>
+    <script src="js/progression.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/battleSystem.js"></script>
+    <script src="js/aiTutor.js"></script>
+    <script src="js/uiHelpers.js"></script>
+    <script src="js/app.js"></script>
+    <!-- Notification System -->
+    <div id="toast-container"></div>
+</body>
+
+</html>
