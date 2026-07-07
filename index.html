@@ -7,6 +7,10 @@
     <meta name="description"
         content="Merits of Math — AI-powered gamified mathematics learning platform for Vietnamese high school students.">
     <title>Merits of Math — Logarithmic Functions</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#818cf8">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -406,6 +410,18 @@
     <script src="js/app.js"></script>
     <!-- Notification System -->
     <div id="toast-container"></div>
+
+    <!-- Progressive Web App: register the service worker for offline support.
+         Guarded so opening the file directly (file://) degrades gracefully. -->
+    <script>
+        if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch((err) => {
+                    console.warn('[PWA] Service worker registration failed:', err.message);
+                });
+            });
+        }
+    </script>
 </body>
 
 </html>

@@ -4,6 +4,11 @@ window.AiTutor = (function () {
     let localModel = localStorage.getItem('localModelName') || 'llama3';
     let activeProvider = localStorage.getItem('aiProvider') || 'cloud';
 
+    // Same-origin serverless endpoint that holds the Groq key server-side (see functions/api/chat.js).
+    // Used by default in cloud mode so students never need — or ever see — an API key.
+    const PROXY_ENDPOINT = '/api/chat';
+    const CLOUD_MODEL = 'llama-3.1-8b-instant';
+
     // Sets key parameters for cloud and local AI endpoints
     function setProviders(cloudParams, localParams) {
         if (cloudParams && cloudParams.key !== undefined) {
@@ -31,10 +36,14 @@ window.AiTutor = (function () {
     // Resolves endpoint settings for the active API configuration
     function getActiveConfig() {
         if (activeProvider === 'local') {
-            return { key: '', baseUrl: localUrl, model: localModel };
-        } else {
-            return { key: cloudKey, baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant' };
+            return { key: '', baseUrl: localUrl, model: localModel, isProxy: false };
         }
+        // Power users / developers may supply their own key to hit Groq directly.
+        if (cloudKey) {
+            return { key: cloudKey, baseUrl: 'https://api.groq.com/openai/v1', model: CLOUD_MODEL, isProxy: false };
+        }
+        // Default hosted deployment: call the same-origin proxy, which injects the key server-side.
+        return { key: '', baseUrl: PROXY_ENDPOINT, model: CLOUD_MODEL, isProxy: true };
     }
 
     // Compares student calculations to expected solutions utilizing mathematical equivalence
@@ -179,7 +188,7 @@ ${alertStr}`;
     async function generateResponse(userInput, battleHistory, challenge, isSolved = false, mistakeCount = 0) {
         const config = getActiveConfig();
         const isLocal = config.baseUrl.includes('localhost') || config.baseUrl.includes('127.0.0.1');
-        if (!config.key && !isLocal) return `[API KEY MISSING] Please set your API key in Settings.`;
+        if (!config.key && !isLocal && !config.isProxy) return `[API KEY MISSING] Please set your API key in Settings.`;
 
         try {
             const activeNodeId = window.BattleSystem ? window.BattleSystem.getState().currentBattleNodeId : null;
@@ -206,9 +215,15 @@ ${alertStr}`;
             const headers = { 'Content-Type': 'application/json' };
             if (config.key) headers['Authorization'] = `Bearer ${config.key}`;
 
-            let fetchUrl = config.baseUrl.endsWith('/') ? config.baseUrl : config.baseUrl + '/';
-            if (!fetchUrl.endsWith('chat/completions')) {
-                fetchUrl += 'chat/completions';
+            let fetchUrl;
+            if (config.isProxy) {
+                // Proxy is a single fixed endpoint; don't append the OpenAI path.
+                fetchUrl = config.baseUrl;
+            } else {
+                fetchUrl = config.baseUrl.endsWith('/') ? config.baseUrl : config.baseUrl + '/';
+                if (!fetchUrl.endsWith('chat/completions')) {
+                    fetchUrl += 'chat/completions';
+                }
             }
 
             const response = await fetch(fetchUrl, {
