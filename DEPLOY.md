@@ -1,0 +1,92 @@
+# Deploying Merits of Math (free)
+
+The app is a static site (`index.html` + `js/` + `style.css`) plus one serverless
+function that hides the AI API key. Both halves fit comfortably in free tiers.
+
+## Architecture
+
+```
+Browser (static app)  ──►  /api/chat  ──►  tries Groq → OpenRouter → Gemini (fallback)
+                            (proxy holds all keys server-side)
+```
+
+Students never enter or see a key. The proxy pins the model and caps token usage
+server-side, so a leaked endpoint can't run up large bills.
+
+## AI providers (free tiers + fallback)
+
+The proxy is multi-provider: it tries each configured provider in order and, if one is
+rate-limited or erroring, falls through to the next. **Configure at least one; add more
+to stack free tiers** for more effective capacity across many students. The frontend
+needs no changes — it always just calls `/api/chat`.
+
+| Env var | Provider | Notes | Get a key |
+|---|---|---|---|
+| `GROQ_API_KEY` | Groq | fast, generous free tier | https://console.groq.com |
+| `OPENROUTER_API_KEY` | OpenRouter | **free DeepSeek** & other `:free` models (~50–1000/day) | https://openrouter.ai/keys |
+| `GEMINI_API_KEY` | Google Gemini | **biggest free daily limit** (~1,500/day) | https://aistudio.google.com/apikey |
+
+Optional env vars:
+- `GROQ_MODEL` / `OPENROUTER_MODEL` / `GEMINI_MODEL` — override the pinned model.
+  Defaults: `llama-3.1-8b-instant`, `deepseek/deepseek-chat-v3-0324:free`, `gemini-2.0-flash`.
+- `PROVIDER_ORDER` — try-order, e.g. `groq,gemini,openrouter` (default `gemini,openrouter,groq`:
+  reliable + big free limit first (Gemini), then smartest backup (DeepSeek V3), then fast fallback (Groq)).
+
+Note on DeepSeek: DeepSeek's *own* API is paid (cheap, not free). The **free** way to use
+DeepSeek is via OpenRouter's `:free` model above. Avoid the R1 *reasoning* model for tutoring —
+it's slower and emits reasoning scratchpads; the default `deepseek-chat-v3` is the better fit.
+
+The `X-AI-Provider` response header tells you which provider actually served each reply
+(handy for debugging fallback).
+
+## Recommended: Cloudflare Pages (static + Functions on one origin)
+
+1. Push this repo to GitHub.
+2. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**, pick the repo.
+3. Build settings: **Framework preset: None**, **Build command: empty**, **Output directory: `/`** (the repo root — it's already static).
+4. After the first deploy, go to **Settings → Environment variables** and add **at least one**
+   provider key from the [AI providers](#ai-providers-free-tiers--fallback) table below
+   (mark each **encrypted/secret**), e.g. `GROQ_API_KEY`. Optionally add `ALLOWED_ORIGIN` =
+   your site URL (e.g. `https://meritsofmath.pages.dev`) to soft-block other origins.
+5. Redeploy. `functions/api/chat.js` is picked up automatically and served at `/api/chat` — no config file needed.
+
+## Alternative: Netlify
+
+Netlify serves functions under `/.netlify/functions/`, so add a redirect so the
+frontend's `/api/chat` still resolves. Create `netlify.toml`:
+
+```toml
+[[redirects]]
+  from = "/api/chat"
+  to = "/.netlify/functions/chat"
+  status = 200
+```
+
+Then port `functions/api/chat.js` to Netlify's handler signature
+(`export default async (request, context) => {...}`, reading `Netlify.env.get('GROQ_API_KEY')`)
+and place it at `netlify/functions/chat.js`. Set `GROQ_API_KEY` under
+**Site settings → Environment variables**.
+
+## Local development
+
+- Open via a local server (not `file://`) so the service worker registers — e.g.
+  `npx serve` or `python -m http.server`, then visit `http://localhost:<port>`.
+- The `/api/chat` proxy only exists on a platform that runs the function. For local
+  AI while developing, either:
+  - open **Settings** and paste your own Groq key (cloud mode goes direct to Groq), or
+  - open **Settings → Local** and point at a running Ollama instance, or
+  - run `npx wrangler pages dev .` to emulate Cloudflare Pages Functions locally.
+
+## Offline / PWA
+
+`manifest.webmanifest` + `sw.js` make the app installable and cache the shell **and**
+the CDN libraries after the first successful load, so it works offline on return
+visits. Bump `CACHE` in `sw.js` when you ship changes.
+
+## Next step: true offline-first (optional follow-up)
+
+Runtime caching covers returning students but still needs the CDNs (MathJax, MathLive,
+Font Awesome, Google Fonts, mathjs, marked) on the **first** load. To make even a cold
+first load work with the CDNs blocked or unreachable, vendor those libraries into the
+repo and precache them in `sw.js`. MathJax and MathLive lazy-load extra sub-files, so
+this is a larger, separate task — done here intentionally as a follow-up.
