@@ -15,8 +15,8 @@
 //   GEMINI_API_KEY       Google AI Studio key (biggest free tier)  https://aistudio.google.com/apikey
 // Optional overrides:
 //   GROQ_MODEL / OPENROUTER_MODEL / GEMINI_MODEL   pin a different model per provider
-//   PROVIDER_ORDER   comma list, e.g. "groq,gemini,openrouter" (default: openrouter,gemini,groq
-//                    — smartest model first, then most-reliable, then fastest fallback)
+//   PROVIDER_ORDER   comma list, e.g. "groq,gemini,openrouter" (default: gemini,openrouter,groq
+//                    — reliable + big free limit first, then smartest backup, then fast fallback)
 //   ALLOWED_ORIGIN   e.g. https://meritsofmath.pages.dev — soft-blocks other origins
 
 const MAX_TOKENS_CAP = 300;   // hard ceiling so a leaked endpoint can't run up huge bills
@@ -44,8 +44,8 @@ const PROVIDERS = {
     }
 };
 
-// Smartest model first (DeepSeek V3), then reliable + big free limit (Gemini), then fast fallback (Groq).
-const DEFAULT_ORDER = ['openrouter', 'gemini', 'groq'];
+// Reliable + big free limit first (Gemini), then smartest backup (DeepSeek V3), then fast fallback (Groq).
+const DEFAULT_ORDER = ['gemini', 'openrouter', 'groq'];
 
 export async function onRequestPost({ request, env }) {
     // Soft origin check — cheap abuse deterrent, not real auth.
