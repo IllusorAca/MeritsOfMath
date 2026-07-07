@@ -62,9 +62,15 @@ export async function onRequestPost({ request, env }) {
         return json({ error: { message: 'Invalid JSON body' } }, 400);
     }
 
-    const messages = Array.isArray(body.messages) ? body.messages.slice(-MAX_MESSAGES) : null;
+    let messages = Array.isArray(body.messages) ? body.messages : null;
     if (!messages || messages.length === 0) {
         return json({ error: { message: 'messages[] is required' } }, 400);
+    }
+    // Cap conversation size, but always keep a leading system prompt — it carries the
+    // Socratic rules and the answer target, so dropping it would quietly wreck tutoring.
+    if (messages.length > MAX_MESSAGES) {
+        const head = messages[0].role === 'system' ? [messages[0]] : [];
+        messages = head.concat(messages.slice(messages.length - (MAX_MESSAGES - head.length)));
     }
     const temperature = typeof body.temperature === 'number' ? body.temperature : 0.1;
     const maxTokens = Math.min(Number(body.max_tokens) || 150, MAX_TOKENS_CAP);
