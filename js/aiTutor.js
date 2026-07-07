@@ -241,10 +241,8 @@ ${alertStr}`;
             if (data.error) throw new Error(data.error.message);
 
             let content = data.choices[0].message.content;
-            const thinkingMatch = content.match(/<thinking>([\s\S]*?)<\/thinking>/i);
-            if (thinkingMatch) {
-                content = content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
-            }
+            // Strip reasoning-model scratchpads (<thinking> from some models, <think> from DeepSeek R1 etc.)
+            content = content.replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '').trim();
 
             content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             return content;

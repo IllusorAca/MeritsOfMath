@@ -6,24 +6,48 @@ function that hides the AI API key. Both halves fit comfortably in free tiers.
 ## Architecture
 
 ```
-Browser (static app)  ──►  /api/chat  (serverless proxy holds GROQ_API_KEY)  ──►  Groq API
+Browser (static app)  ──►  /api/chat  ──►  tries Groq → OpenRouter → Gemini (fallback)
+                            (proxy holds all keys server-side)
 ```
 
 Students never enter or see a key. The proxy pins the model and caps token usage
 server-side, so a leaked endpoint can't run up large bills.
+
+## AI providers (free tiers + fallback)
+
+The proxy is multi-provider: it tries each configured provider in order and, if one is
+rate-limited or erroring, falls through to the next. **Configure at least one; add more
+to stack free tiers** for more effective capacity across many students. The frontend
+needs no changes — it always just calls `/api/chat`.
+
+| Env var | Provider | Notes | Get a key |
+|---|---|---|---|
+| `GROQ_API_KEY` | Groq | fast, generous free tier | https://console.groq.com |
+| `OPENROUTER_API_KEY` | OpenRouter | **free DeepSeek** & other `:free` models (~50–1000/day) | https://openrouter.ai/keys |
+| `GEMINI_API_KEY` | Google Gemini | **biggest free daily limit** (~1,500/day) | https://aistudio.google.com/apikey |
+
+Optional env vars:
+- `GROQ_MODEL` / `OPENROUTER_MODEL` / `GEMINI_MODEL` — override the pinned model.
+  Defaults: `llama-3.1-8b-instant`, `deepseek/deepseek-chat-v3-0324:free`, `gemini-2.0-flash`.
+- `PROVIDER_ORDER` — try-order, e.g. `gemini,groq,openrouter` (default `groq,openrouter,gemini`).
+
+Note on DeepSeek: DeepSeek's *own* API is paid (cheap, not free). The **free** way to use
+DeepSeek is via OpenRouter's `:free` model above. Avoid the R1 *reasoning* model for tutoring —
+it's slower and emits reasoning scratchpads; the default `deepseek-chat-v3` is the better fit.
+
+The `X-AI-Provider` response header tells you which provider actually served each reply
+(handy for debugging fallback).
 
 ## Recommended: Cloudflare Pages (static + Functions on one origin)
 
 1. Push this repo to GitHub.
 2. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**, pick the repo.
 3. Build settings: **Framework preset: None**, **Build command: empty**, **Output directory: `/`** (the repo root — it's already static).
-4. After the first deploy, go to **Settings → Environment variables** and add:
-   - `GROQ_API_KEY` = your Groq key (`gsk_...`) — mark it **encrypted/secret**.
-   - *(optional)* `GROQ_MODEL` to override the default `llama-3.1-8b-instant`.
-   - *(optional)* `ALLOWED_ORIGIN` = your site URL (e.g. `https://meritsofmath.pages.dev`) to soft-block other origins.
+4. After the first deploy, go to **Settings → Environment variables** and add **at least one**
+   provider key from the [AI providers](#ai-providers-free-tiers--fallback) table below
+   (mark each **encrypted/secret**), e.g. `GROQ_API_KEY`. Optionally add `ALLOWED_ORIGIN` =
+   your site URL (e.g. `https://meritsofmath.pages.dev`) to soft-block other origins.
 5. Redeploy. `functions/api/chat.js` is picked up automatically and served at `/api/chat` — no config file needed.
-
-Get a free Groq key at <https://console.groq.com>.
 
 ## Alternative: Netlify
 

@@ -1,19 +1,49 @@
 // Cloudflare Pages Function — serves at /api/chat
 //
-// Holds the Groq API key server-side so the browser never sees it. The frontend
-// (js/aiTutor.js) POSTs the same OpenAI-style { messages, temperature, max_tokens }
-// body it would send to Groq directly; this function injects the key and forwards it.
+// Holds AI provider keys server-side so the browser never sees them. The frontend
+// (js/aiTutor.js) POSTs an OpenAI-style { messages, temperature, max_tokens } body;
+// this function injects the right key, pins the model, and forwards it.
 //
-// Required env var (set in the Cloudflare Pages dashboard → Settings → Environment variables):
-//   GROQ_API_KEY   your Groq secret key (gsk_...)
-// Optional env vars:
-//   GROQ_MODEL     override the pinned model (default: llama-3.1-8b-instant)
-//   ALLOWED_ORIGIN e.g. https://meritsofmath.pages.dev — soft-blocks other origins
+// MULTI-PROVIDER WITH FALLBACK: it tries providers in order and, if one is rate-limited
+// (429) or erroring (5xx / network), falls through to the next. Only providers whose key
+// is configured are attempted — so with just GROQ_API_KEY set it behaves as a plain Groq
+// proxy; add more keys to stack free tiers for more effective capacity.
+//
+// Env vars (set in Cloudflare Pages → Settings → Environment variables, mark secret):
+//   GROQ_API_KEY         Groq key (gsk_...)                        https://console.groq.com
+//   OPENROUTER_API_KEY   OpenRouter key (free DeepSeek etc.)       https://openrouter.ai/keys
+//   GEMINI_API_KEY       Google AI Studio key (biggest free tier)  https://aistudio.google.com/apikey
+// Optional overrides:
+//   GROQ_MODEL / OPENROUTER_MODEL / GEMINI_MODEL   pin a different model per provider
+//   PROVIDER_ORDER   comma list, e.g. "gemini,groq,openrouter" (default: groq,openrouter,gemini)
+//   ALLOWED_ORIGIN   e.g. https://meritsofmath.pages.dev — soft-blocks other origins
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODEL = 'llama-3.1-8b-instant';
 const MAX_TOKENS_CAP = 300;   // hard ceiling so a leaked endpoint can't run up huge bills
 const MAX_MESSAGES = 40;      // cap conversation size per request
+
+// Each provider exposes an OpenAI-compatible /chat/completions endpoint, so the response
+// shape ({ choices:[{ message:{ content }}] }) is identical and passes straight through.
+const PROVIDERS = {
+    groq: {
+        url: 'https://api.groq.com/openai/v1/chat/completions',
+        keyEnv: 'GROQ_API_KEY',
+        model: (env) => env.GROQ_MODEL || 'llama-3.1-8b-instant'
+    },
+    openrouter: {
+        url: 'https://openrouter.ai/api/v1/chat/completions',
+        keyEnv: 'OPENROUTER_API_KEY',
+        // Free DeepSeek chat (not the R1 reasoning model — this one is faster and doesn't
+        // emit <think> blocks, which suits the Socratic tutor better).
+        model: (env) => env.OPENROUTER_MODEL || 'deepseek/deepseek-chat-v3-0324:free'
+    },
+    gemini: {
+        url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+        keyEnv: 'GEMINI_API_KEY',
+        model: (env) => env.GEMINI_MODEL || 'gemini-2.0-flash'
+    }
+};
+
+const DEFAULT_ORDER = ['groq', 'openrouter', 'gemini'];
 
 export async function onRequestPost({ request, env }) {
     // Soft origin check — cheap abuse deterrent, not real auth.
@@ -21,10 +51,6 @@ export async function onRequestPost({ request, env }) {
     const origin = request.headers.get('Origin');
     if (allowed && origin && origin !== allowed) {
         return json({ error: { message: 'Origin not allowed' } }, 403);
-    }
-
-    if (!env.GROQ_API_KEY) {
-        return json({ error: { message: 'Server is missing GROQ_API_KEY' } }, 500);
     }
 
     let body;
@@ -38,35 +64,66 @@ export async function onRequestPost({ request, env }) {
     if (!messages || messages.length === 0) {
         return json({ error: { message: 'messages[] is required' } }, 400);
     }
+    const temperature = typeof body.temperature === 'number' ? body.temperature : 0.1;
+    const maxTokens = Math.min(Number(body.max_tokens) || 150, MAX_TOKENS_CAP);
 
-    // Pin the model and cap tokens server-side; ignore client attempts to override.
-    const payload = {
-        model: env.GROQ_MODEL || DEFAULT_MODEL,
-        messages,
-        temperature: typeof body.temperature === 'number' ? body.temperature : 0.1,
-        max_tokens: Math.min(Number(body.max_tokens) || 150, MAX_TOKENS_CAP)
-    };
+    // Build the provider try-order: honor PROVIDER_ORDER, else default; then keep only
+    // providers that actually have a key configured. Optional ?provider= forces one (debug).
+    const url = new URL(request.url);
+    const forced = url.searchParams.get('provider');
+    let order = (env.PROVIDER_ORDER ? env.PROVIDER_ORDER.split(',') : DEFAULT_ORDER)
+        .map((n) => n.trim())
+        .filter((n) => PROVIDERS[n]);
+    if (forced && PROVIDERS[forced]) order = [forced];
+    order = order.filter((n) => env[PROVIDERS[n].keyEnv]);
 
-    let upstream;
-    try {
-        upstream = await fetch(GROQ_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${env.GROQ_API_KEY}`
-            },
-            body: JSON.stringify(payload)
-        });
-    } catch {
-        return json({ error: { message: 'Upstream AI request failed' } }, 502);
+    if (order.length === 0) {
+        return json({ error: { message: 'No AI provider is configured on the server (set at least one *_API_KEY).' } }, 500);
     }
 
-    // Pass Groq's response straight through — it's already the shape aiTutor.js expects.
-    const text = await upstream.text();
-    return new Response(text, {
-        status: upstream.status,
-        headers: { 'Content-Type': 'application/json' }
-    });
+    let lastError = { status: 502, message: 'All providers failed' };
+
+    for (const name of order) {
+        const p = PROVIDERS[name];
+        const payload = { model: p.model(env), messages, temperature, max_tokens: maxTokens };
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env[p.keyEnv]}`
+        };
+        // OpenRouter uses these for attribution/ranking (optional).
+        if (name === 'openrouter' && allowed) {
+            headers['HTTP-Referer'] = allowed;
+            headers['X-Title'] = 'Merits of Math';
+        }
+
+        let res;
+        try {
+            res = await fetch(p.url, { method: 'POST', headers, body: JSON.stringify(payload) });
+        } catch {
+            lastError = { status: 502, message: `${name}: network error` };
+            continue; // try next provider
+        }
+
+        if (res.ok) {
+            // Success — pass the provider's response straight through, tag which one served it.
+            const text = await res.text();
+            return new Response(text, {
+                status: 200,
+                headers: { 'Content-Type': 'application/json', 'X-AI-Provider': name }
+            });
+        }
+
+        // Rate-limited or server error → fall through to the next provider.
+        // Other 4xx (bad key, bad request) also fall through but are recorded.
+        const errText = await res.text().catch(() => '');
+        lastError = { status: res.status, message: `${name}: ${res.status} ${errText.slice(0, 200)}` };
+        if (res.status !== 429 && res.status < 500) {
+            // Non-retryable config error for this provider; keep trying others but note it.
+            continue;
+        }
+    }
+
+    return json({ error: { message: `AI unavailable — ${lastError.message}` } }, lastError.status);
 }
 
 // Non-POST methods receive Cloudflare's automatic 405 (no handler defined for them).
