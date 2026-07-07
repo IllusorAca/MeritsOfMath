@@ -29,7 +29,8 @@ needs no changes — it always just calls `/api/chat`.
 Optional env vars:
 - `GROQ_MODEL` / `OPENROUTER_MODEL` / `GEMINI_MODEL` — override the pinned model.
   Defaults: `llama-3.1-8b-instant`, `deepseek/deepseek-chat-v3-0324:free`, `gemini-2.0-flash`.
-- `PROVIDER_ORDER` — try-order, e.g. `gemini,groq,openrouter` (default `groq,openrouter,gemini`).
+- `PROVIDER_ORDER` — try-order, e.g. `groq,gemini,openrouter` (default `openrouter,gemini,groq`:
+  smartest model first (DeepSeek V3), then reliable + big free limit (Gemini), then fast fallback (Groq)).
 
 Note on DeepSeek: DeepSeek's *own* API is paid (cheap, not free). The **free** way to use
 DeepSeek is via OpenRouter's `:free` model above. Avoid the R1 *reasoning* model for tutoring —
