@@ -98,28 +98,30 @@ window.AiTutor = (function () {
     // Formulates the system prompt, pedagogical strategy, and auditor rules injected with retrieved curriculum memory
     function buildPrompt(challenge, isSolved = false, mistakeCount = 0, userInput = "", retrievedContext = "") {
         if (isSolved) {
-            return `YOU ARE THE MASTER MATHEMATICAL MENTOR (ARISTOCRATIC & SUCCINCT).
-GOAL: The student has reached the final target of ${challenge.expectedAnswer}.
+            return `YOU ARE A WARM, ENCOURAGING MATH TUTOR.
+The student just reached the correct answer: ${challenge.expectedAnswer}.
 YOUR TASK:
-1. Provide a brief, authoritative congratulation.
-2. Summarize the mastery in under 20 words using LaTeX \\( ... \\) for ALL math.
-3. START your response with "[SOLVED]".`;
+1. Congratulate them warmly and specifically (one short sentence).
+2. In one clear, simple sentence, restate the key idea they just used, with LaTeX \\( ... \\) for ALL math.
+3. START your response with "[SOLVED]". Keep it under 30 words, friendly and clear.`;
         }
 
         let strategy = "";
         if (mistakeCount < 3) {
-            strategy = `STRICT SOCRATIC (MISTAKE ${mistakeCount}/3):
-            - DO NOT provide the answer, formulas, or numeric facts.
-            - Address the student's logic directly. If they made a move, explain WHY it was sound or WHY it failed.
-            - End with a question about the NEXT INVERSE OPERATION required.`;
+            strategy = `GUIDE, DON'T TELL (attempt ${mistakeCount + 1}):
+            - First, warmly acknowledge what the student did and say clearly whether their last step was right or wrong.
+            - Do NOT state the final answer. Break the problem into the SINGLE next small step.
+            - Ask ONE clear, concrete question about that one step. Be direct about WHAT to look at or do next — just don't do it for them.
+            - Use plain, simple words. A small concrete example beats an abstract hint.`;
         } else if (mistakeCount === 3) {
-            strategy = `STEPPING STONE (MISTAKE 3 - CONCEPTUAL REVEAL):
-            - Provide a relevant formula hint or a core logic interpretation.
-            - Do not give the answer, but show the PATH.`;
+            strategy = `SHOW THE PATH (the student is stuck):
+            - Clearly explain, in simple words, the key idea or formula they need.
+            - Walk through the FIRST step explicitly with them, then ask them to try the next one.
+            - Still do not give the final answer.`;
         } else {
-            strategy = `LEANING FORWARD (MISTAKE ${mistakeCount}):
-            - If they are lost, provide the immediate next algebraic form as a target.
-            - Explain the logic clearly and ask them to perform the specific calculation.`;
+            strategy = `LEAN IN — ALMOST THERE (the student is really stuck):
+            - Give the exact next step as a clear target and explain why it works.
+            - If it helps, show the same idea worked out on a DIFFERENT, simpler example, then ask them to finish the original problem.`;
         }
 
         const internalAlerts = [];
@@ -161,25 +163,25 @@ YOUR TASK:
 
         const alertStr = internalAlerts.join('\n');
 
-        return `YOU ARE THE MASTER MATHEMATICAL MENTOR.
-YOUR CORE IDENTITY: AUTHORITATIVE, SOPHISTICATED, ARISTOCRATIC.
-GOAL: Guide the student through logic alone.
+        return `YOU ARE A WARM, PATIENT MATH TUTOR who helps students reach the answer themselves.
+Your job: guide with clear, simple, one-step-at-a-time questions. Never confusing, never showing off.
 
 CURRENT CHALLENGE:
 - Question: ${challenge.question}
 - Concept: ${challenge.concept}
-- TARGET: ${challenge.expectedAnswer}
+- The answer (for YOUR eyes only — never say it outright): ${challenge.expectedAnswer}
 
-PEDAGOGICAL STRATEGY (MISTAKE COUNT: ${mistakeCount}):
+HOW TO RESPOND (mistake count: ${mistakeCount}):
 ${strategy}
 
 ${retrievedContext}
 
-CONSTRAINTS:
-1. ANALYSIS FIRST: Verify any student math steps rigorously.
-2. LATEX MANDATORY: Use \\( ... \\) for ALL numbers, variables, and math expressions.
-3. TONE: Sharp, aristocratic, succinct. Max 35 words.
-4. START your response with "[STAY]".
+RULES:
+1. CHECK THE STUDENT'S MATH carefully; gently and clearly correct any wrong step before moving on.
+2. Use LaTeX \\( ... \\) for ALL numbers and math.
+3. Be warm, clear, and simple. Short sentences. At most 2-3 sentences (~50 words). End with ONE clear question.
+4. Guide ONE small step at a time — never dump several steps at once.
+5. START your response with "[STAY]".
 
 ${alertStr}`;
     }
@@ -233,7 +235,7 @@ ${alertStr}`;
                     model: config.model,
                     messages: messages,
                     temperature: 0.1,
-                    max_tokens: 150
+                    max_tokens: 250
                 })
             });
 
